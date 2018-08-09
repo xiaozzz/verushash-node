@@ -20,12 +20,13 @@ def configure(conf):
 def build(bld):
   obj = bld.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "verushash"
-  obj.include = "verus_hash.h"
+  obj.include = "common.h"
   obj.include = "haraka.h"
-  obj.include = "haraka_port.h"
-  obj.source = "verus_hash.cpp"
+  obj.include = "haraka_portable.h"
+  obj.include = "verus_hash.h"
   obj.source = "haraka.c"
-  obj.source = "haraka_port.c"
+  obj.source = "haraka_portable.c"
+  obj.source = "verus_hash.cpp"
   obj.source = "verushash.cc"
 
 def shutdown():
