@@ -36,6 +36,7 @@ class Hash : public ObjectWrap {
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
     NODE_SET_PROTOTYPE_METHOD(t, "init", HashInit);
+    NODE_SET_PROTOTYPE_METHOD(t, "reset", HashReset);
     NODE_SET_PROTOTYPE_METHOD(t, "update", HashUpdate);
     NODE_SET_PROTOTYPE_METHOD(t, "digest", HashDigest);
 
@@ -46,23 +47,30 @@ class Hash : public ObjectWrap {
   {
     initialised = true;
     return true;
-    
+  }
+
+  bool HashReset ()
+  {
+    if (!initialised)
+      return false;;
+    vh.Reset();
+    return true;
   }
 
   int HashUpdate(char* data, int len) {
     if (!initialised)
       return 0;
-    // put Hash here
+    vh.Write((const unsigned *)data, len)
     return 1;
   }
 
   int HashDigest(unsigned char** md_value, unsigned int *md_len) {
     if (!initialised)
       return 0;
-    // finalize and return value here
+    vh.Finalize(*md_value);
+    *md_len = 32;
     return 1;
   }
-
 
  protected:
 
@@ -88,7 +96,22 @@ class Hash : public ObjectWrap {
 
     String::Utf8Value hashType(args[0]->ToString());
 
+    // only support verus v1 now
+    if (strcmp(hashType, "verus")) {
+      return ThrowException(String::New("Only verus is supported as a hashType"));
+    }
+
     bool r = hash->HashInit(*hashType);
+
+    return args.This();
+  }
+
+  static Handle<Value>
+  HashReset(const Arguments& args) {
+    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
+
+    HandleScope scope;
+    bool r = hash->HashReset();
 
     return args.This();
   }
