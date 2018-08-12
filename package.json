@@ -1,11 +1,15 @@
-{ "name" : "verushash"
-, "author" : "miketout"
-, "version" : "0.0.5"
-, "scripts" :
-  { "preinstall" : "node-waf configure"
-  , "install" : "node-waf build"
-  , "test" : "node test.js"
-  }
-, "main" : "build/default/verushash"
-, "engines" : [ "node" ]
+{
+    "name": "verushash",
+    "author": "hellcatz",
+    "version": "0.0.6",
+    "scripts": {
+        "test": "node test.js"
+    },
+    "main": "verushash",
+    "bundleDependencies": true,
+    "dependencies": {
+        "bindings": "*",
+        "nan": "*",
+        "node-gyp": "*"
+    }
 }

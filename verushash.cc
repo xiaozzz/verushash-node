@@ -1,201 +1,115 @@
+#include <nan.h>
 #include <node.h>
-#include <node_events.h>
-#include <assert.h>
-#include <string.h>
+#include <node_buffer.h>
+#include <v8.h>
+#include <stdint.h>
+#include <vector>
+
+#include "crypto/verus_hash.h"
 
 using namespace v8;
-using namespace node;
 
-void hex_encode(unsigned char *md_value, int md_len, char** md_hexdigest, int* md_hex_len) {
-  *md_hex_len = (2*(md_len));
-  *md_hexdigest = (char *) malloc(*md_hex_len + 1);
-  for(int i = 0; i < md_len; i++) {
-    sprintf((char *)(*md_hexdigest + (i*2)), "%02x",  md_value[i]);
-  }
+CVerusHash* vh;
+bool initialized = false;
+
+void verusInit(const v8::FunctionCallbackInfo<Value>& args) {
+    vh = new CVerusHash();
+    vh->init();
+    initialized = true;
+    
+    args.GetReturnValue().Set(args.This());
 }
 
-#define hex2i(c) ((c) <= '9' ? ((c) - '0') : (c) <= 'Z' ? ((c) - 'A' + 10) : ((c) - 'a' + 10))
-void hex_decode(unsigned char *input, int length, char** buf64, int* buf64_len) {
-  *buf64_len = (length/2);
-  *buf64 = (char*) malloc(length/2 + 1);
-  char *b = *buf64;
-  for(int i = 0; i < length-1; i+=2) {
-    b[i/2]  = (hex2i(input[i])<<4) | (hex2i(input[i+1]));
-  }
+void verusUpdate(const v8::FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    if (initialized == false){
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "call init() first!"))
+        );
+    }
+    if (args.Length() < 1) {
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "Wrong number of arguments"))
+        );
+        return;
+    }
+    Local<Object> buffer = args[0]->ToObject();
+    if(!node::Buffer::HasInstance(buffer)) {
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "Invalid buffer objects."))
+        );
+        return;
+    }
+    
+    const char *buff = node::Buffer::Data(buffer);
+    vh->Write((const unsigned char *)buff, node::Buffer::Length(buffer));
+    
+    args.GetReturnValue().Set(args.This());
 }
 
-class Hash : public ObjectWrap {
- public:
-  static void
-  Initialize (v8::Handle<v8::Object> target)
-  {
-    HandleScope scope;
-
-    Local<FunctionTemplate> t = FunctionTemplate::New(New);
-
-    t->InstanceTemplate()->SetInternalFieldCount(1);
-
-    NODE_SET_PROTOTYPE_METHOD(t, "init", HashInit);
-    NODE_SET_PROTOTYPE_METHOD(t, "reset", HashReset);
-    NODE_SET_PROTOTYPE_METHOD(t, "update", HashUpdate);
-    NODE_SET_PROTOTYPE_METHOD(t, "digest", HashDigest);
-
-    target->Set(String::NewSymbol("Hash"), t->GetFunction());
-  }
-
-  bool HashInit (const char* hashType)
-  {
-    initialised = true;
-    return true;
-  }
-
-  bool HashReset ()
-  {
-    if (!initialised)
-      return false;;
-    vh.Reset();
-    return true;
-  }
-
-  int HashUpdate(char* data, int len) {
-    if (!initialised)
-      return 0;
-    vh.Write((const unsigned *)data, len)
-    return 1;
-  }
-
-  int HashDigest(unsigned char** md_value, unsigned int *md_len) {
-    if (!initialised)
-      return 0;
-    vh.Finalize(*md_value);
-    *md_len = 32;
-    return 1;
-  }
-
- protected:
-
-  static Handle<Value>
-  New (const Arguments& args)
-  {
-    HandleScope scope;
-
-    Hash *hash = new Hash();
-    hash->Wrap(args.This());
-    return args.This();
-  }
-
-  static Handle<Value>
-  HashInit(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
-    HandleScope scope;
-
-    if (args.Length() == 0 || !args[0]->IsString()) {
-      return ThrowException(String::New("Must give hashtype string as argument"));
+void verusDigest(const v8::FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    if (initialized == false){
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "call init() first!"))
+        );
     }
-
-    String::Utf8Value hashType(args[0]->ToString());
-
-    // only support verus v1 now
-    if (strcmp(hashType, "verus")) {
-      return ThrowException(String::New("Only verus is supported as a hashType"));
-    }
-
-    bool r = hash->HashInit(*hashType);
-
-    return args.This();
-  }
-
-  static Handle<Value>
-  HashReset(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
-    HandleScope scope;
-    bool r = hash->HashReset();
-
-    return args.This();
-  }
-
-  static Handle<Value>
-  HashUpdate(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
-    HandleScope scope;
-
-    enum encoding enc = ParseEncoding(args[1]);
-    ssize_t len = DecodeBytes(args[0], enc);
-
-    if (len < 0) {
-      Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
-      return ThrowException(exception);
-    }
-
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[0], enc);
-    assert(written == len);
-
-    int r = hash->HashUpdate(buf, len);
-
-    return args.This();
-  }
-
-  static Handle<Value>
-  HashDigest(const Arguments& args) {
-    Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
-
-    HandleScope scope;
-
-    unsigned char* md_value;
-    unsigned int md_len;
-    char* md_hexdigest;
-    int md_hex_len;
-    Local<Value> outString ;
-
-    int r = hash->HashDigest(&md_value, &md_len);
-
-    if (md_len == 0 || r == 0) {
-      return scope.Close(String::New(""));
-    }
-
-    if (args.Length() == 0 || !args[0]->IsString()) {
-      // Binary
-      outString = Encode(md_value, md_len, BINARY);
-    } else {
-      String::Utf8Value encoding(args[0]->ToString());
-      if (strcasecmp(*encoding, "hex") == 0) {
-        // Hex encoding
-        hex_encode(md_value, md_len, &md_hexdigest, &md_hex_len);
-        outString = Encode(md_hexdigest, md_hex_len, BINARY);
-        free(md_hexdigest);
-      } else if (strcasecmp(*encoding, "binary") == 0) {
-        outString = Encode(md_value, md_len, BINARY);
-      } else {
-	fprintf(stderr, "verushash-node : Hash .digest encoding "
-		"can be binary or hex\n");
-      }
-    }
-    free(md_value);
-    return scope.Close(outString);
-
-  }
-
-  Hash () : ObjectWrap (), vh()
-  {
-    initialised = false;
-  }
-
-  ~Hash ()
-  {
-  }
-
- private:
-  CVerusHash vh;
-  bool initialised;
-};
-
-extern "C" void
-init (Handle<Object> target) 
-{
-  HandleScope scope;
-  Hash::Initialize(target);
+    char *result = new char[32];
+    vh->Finalize((unsigned char *)result);
+    args.GetReturnValue().Set(Nan::NewBuffer(result, 32).ToLocalChecked());
 }
+
+void verusReset(const v8::FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    if (initialized == false){
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "call init() first!"))
+        );
+    }
+    vh->Reset();
+    args.GetReturnValue().Set(args.This());
+}
+
+void verusHash(const v8::FunctionCallbackInfo<Value>& args) {
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    if (args.Length() < 1) {
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "Wrong number of arguments"))
+        );
+        return;
+    }
+    Local<Object> buffer = args[0]->ToObject();
+    if(!node::Buffer::HasInstance(buffer)) {
+        isolate->ThrowException(
+            Exception::TypeError(String::NewFromUtf8(isolate, "Invalid buffer objects."))
+        );
+        return;
+    }
+
+    const char *buff = node::Buffer::Data(buffer);
+
+    char *result = new char[32];
+    
+    if (initialized == false) {
+        CVerusHash::init();
+        initialized = true;
+    }
+    verus_hash(result, buff, node::Buffer::Length(buffer));
+    
+    args.GetReturnValue().Set(Nan::NewBuffer(result, 32).ToLocalChecked());
+}
+
+
+void Init(Handle<Object> exports) {
+  NODE_SET_METHOD(exports, "init", verusInit);
+  NODE_SET_METHOD(exports, "update", verusUpdate);
+  NODE_SET_METHOD(exports, "digest", verusDigest);
+  NODE_SET_METHOD(exports, "reset", verusReset);
+  NODE_SET_METHOD(exports, "hash", verusHash);
+}
+
+NODE_MODULE(verushash, Init)

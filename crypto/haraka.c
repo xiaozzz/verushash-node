@@ -25,7 +25,7 @@ Optimized Implementations for Haraka256 and Haraka512
 */
 
 #include <stdio.h>
-#include "crypto/haraka.h"
+#include "haraka.h"
 
 u128 rc[40];
 u128 rc0[40] = {0};

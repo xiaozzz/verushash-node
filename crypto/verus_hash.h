@@ -15,8 +15,8 @@ This provides the PoW hash function for Verus, enabling CPU mining.
 
 extern "C" 
 {
-#include "crypto/haraka.h"
-#include "crypto/haraka_portable.h"
+#include "haraka.h"
+#include "haraka_portable.h"
 }
 
 class CVerusHash
