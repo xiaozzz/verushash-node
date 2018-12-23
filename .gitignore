@@ -1,3 +1,4 @@
 .lock-wscript
 build/
 crypto.node
+.vscode/settings.json
