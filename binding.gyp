@@ -23,7 +23,7 @@
                 "verushash.cc",
             ],
             "include_dirs": [
-                "<!(node -e \"require('nan')\")",
+                "<!(nodejs -e \"require('nan')\")",
             ],
             "defines": [
             ],
