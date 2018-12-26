@@ -20,8 +20,6 @@
 
 #include "verus_hash.h"
 
-#include <boost/thread.hpp>
-
 #include <assert.h>
 #include <string.h>
 #include <x86intrin.h>
