@@ -432,7 +432,7 @@ static __m128i __verusclmulwithoutreduction64alignedrepeat_port(__m128i *randoms
                 // cannot be zero here
                 const int32_t divisor = (uint32_t)selector;
 
-                acc = _mm_xor_si128(add1, acc);
+                acc = _mm_xor_si128_emu(add1, acc);
 
                 const int64_t dividend = _mm_cvtsi128_si64_emu(acc);
                 const __m128i modulo = _mm_cvtsi32_si128_emu(dividend % divisor);
