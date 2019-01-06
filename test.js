@@ -29,15 +29,12 @@ if (cluster.isMaster) {
 } else {
     
     var output = vh.hash(Buffer.from('Test1234','utf8'));
-    console.log(process.pid,'Output', reverseHex(output.toString('hex')), '\n');    
+    console.log(process.pid,'VerusHash1 Output', reverseHex(output.toString('hex')), '\n');    
     output = vh.init().update(Buffer.from('Test','utf8')).update(Buffer.from('123','utf8')).update(Buffer.from('4','utf8')).digest();
-    console.log(process.pid,'Output', reverseHex(output.toString('hex')), '\n');
-    for (var i=0; i<100; i++) {
-        vh.reset();
-        vh.update(Buffer.from('Test','utf8'));
-        vh.update(Buffer.from('123','utf8'));
-        vh.update(Buffer.from('4','utf8'));
-        output = vh.digest();
-        console.log(process.pid,'Output', reverseHex(output.toString('hex')), '\n');
-    }
+    console.log(process.pid,'VerusHash1 Output', reverseHex(output.toString('hex')), '\n');
+
+    output = vh.hash2(Buffer.from('Test1234','utf8'));
+    console.log(process.pid,'VerusHash2 Output', reverseHex(output.toString('hex')), '\n');    
+    output = vh.init().update2(Buffer.from('Test','utf8')).update2(Buffer.from('123','utf8')).update2(Buffer.from('4','utf8')).digest2();
+    console.log(process.pid,'VerusHash2 Output', reverseHex(output.toString('hex')), '\n');
 }
