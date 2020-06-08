@@ -1,6 +1,6 @@
 # verushash-node
 
-Implementation of the VerushHash V1, V2, V2.1 hash algorithm as a node.js module
+Implementation of the VerushHash V1, V2, V2.1, V2.2 hash algorithm as a node.js module
 
 ## For testing purposes:
 
